@@ -13,11 +13,13 @@ export const SignupForm: React.FC = () => {
   const [checkagree, setCheckAgree] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const router = useRouter();
   const supabase = createClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!checkagree) {
       setError("You must agree to the Terms of Service and Privacy Policy.");
       return;
@@ -25,59 +27,89 @@ export const SignupForm: React.FC = () => {
 
     setIsLoading(true);
     setError("");
-    console.log(email, password, name);
+    setSuccess("");
 
-    // Step 1: Sign up with Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          name,
+    try {
+      // Sign up with Supabase Auth only
+      const { data, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name: name,
+            display_name: name,
+          },
         },
-      },
-    });
+      });
 
-    if (authError) {
-      setError(authError.message);
+      if (authError) {
+        setError(authError.message);
+        setIsLoading(false);
+        return;
+      }
+
+      if (!data.user) {
+        setError("Registration failed. Please try again.");
+        setIsLoading(false);
+        return;
+      }
+
+      // Check if email confirmation is required
+      if (data.session) {
+        // User is automatically signed in (no email confirmation required)
+        setSuccess("Account created successfully! Redirecting...");
+        setTimeout(() => {
+          router.push("/chat");
+          router.refresh();
+        }, 1500);
+      } else {
+        // Email confirmation is required
+        setSuccess("Account created! Please check your email to verify your account before logging in.");
+        setTimeout(() => {
+          router.push("/login");
+        }, 3000);
+      }
+    } catch (err: any) {
+      console.error("Signup error:", err);
+      setError(err.message || "An unexpected error occurred. Please try again.");
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    if (!authData.user) {
-      setError("Registration failed. Please try again.");
-      setIsLoading(false);
-      return;
-    }
-
-    // Success! Redirect to chat
-    router.push("/login");
-    router.refresh();
   };
 
   const handleGoogleSignup = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
-      },
-    });
+    setError("");
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
 
-    if (error) {
-      setError(error.message);
+      if (error) {
+        setError(error.message);
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to sign up with Google");
     }
   };
 
   const handleGitHubSignup = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "github",
-      options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
-      },
-    });
+    setError("");
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "github",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
 
-    if (error) {
-      setError(error.message);
+      if (error) {
+        setError(error.message);
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to sign up with GitHub");
     }
   };
 
@@ -93,6 +125,12 @@ export const SignupForm: React.FC = () => {
         </div>
       )}
 
+      {success && (
+        <div className="mb-4 p-3 bg-green-500/10 border border-green-500 rounded-lg">
+          <p className="text-green-500 text-sm">{success}</p>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input
           type="text"
@@ -100,6 +138,7 @@ export const SignupForm: React.FC = () => {
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
+          disabled={isLoading}
         />
 
         <Input
@@ -108,14 +147,17 @@ export const SignupForm: React.FC = () => {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
+          disabled={isLoading}
         />
 
         <Input
           type="password"
-          placeholder="Password"
+          placeholder="Password (min. 6 characters)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
+          minLength={6}
+          disabled={isLoading}
         />
 
         <label className="flex items-start gap-2 cursor-pointer">
@@ -124,6 +166,7 @@ export const SignupForm: React.FC = () => {
             checked={checkagree}
             onChange={(e) => setCheckAgree(e.target.checked)}
             className="mt-0.5 w-4 h-4 rounded accent-white cursor-pointer"
+            disabled={isLoading}
           />
           <span className="text-xs text-gray-400 leading-tight">
             I accept the{" "}
@@ -139,7 +182,7 @@ export const SignupForm: React.FC = () => {
         </label>
 
         <Button type="submit" variant="primary" fullWidth disabled={isLoading}>
-          {isLoading ? "Loading..." : "Signup"}
+          {isLoading ? "Creating account..." : "Signup"}
         </Button>
       </form>
 
@@ -150,6 +193,7 @@ export const SignupForm: React.FC = () => {
           variant="secondary"
           fullWidth
           onClick={handleGoogleSignup}
+          disabled={isLoading}
           className="flex items-center justify-center gap-2"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -177,6 +221,7 @@ export const SignupForm: React.FC = () => {
           variant="secondary"
           fullWidth
           onClick={handleGitHubSignup}
+          disabled={isLoading}
           className="flex items-center justify-center gap-2"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
