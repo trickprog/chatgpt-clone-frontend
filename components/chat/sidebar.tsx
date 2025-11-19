@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useChat } from "@/contexts/ChatContext";
 import { useRouter } from "next/navigation";
 import { ChatHeader } from "./chat-header";
+import { supabase } from "@/lib/supabase";
 
 export const Sidebar: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
@@ -30,9 +31,9 @@ export const Sidebar: React.FC = () => {
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isSidebarOpen]);
 
@@ -65,6 +66,12 @@ export const Sidebar: React.FC = () => {
     }
   };
 
+  const handleSignout = async () => {
+    // Add your Prisma signout logic here
+    console.log("Signing out from Supabase...");
+    const { error } = await supabase.auth.signOut({ scope: "local" });
+  console.log(error)
+  };
   return (
     <>
       {/* Backdrop - Mobile only */}
@@ -90,7 +97,7 @@ export const Sidebar: React.FC = () => {
           }
         }}
       >
-        <div 
+        <div
           className="flex flex-col h-full overflow-hidden"
           onClick={(e) => {
             if (isSidebarOpen) {
@@ -180,7 +187,11 @@ export const Sidebar: React.FC = () => {
                   ? "opacity-50 cursor-not-allowed"
                   : "hover:bg-gray-900 cursor-pointer"
               }`}
-              title={currentConversation && messages.length === 0 ? "Start chatting first" : "New Chat"}
+              title={
+                currentConversation && messages.length === 0
+                  ? "Start chatting first"
+                  : "New Chat"
+              }
             >
               <svg
                 width="24"
@@ -312,6 +323,39 @@ export const Sidebar: React.FC = () => {
                 Chat History
               </span>
             </li>
+
+            {/* New Signout Prisma Option */}
+            <li
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSignout();
+              }}
+              className="flex items-center gap-3 hover:bg-gray-900 p-2 rounded-lg cursor-pointer transition-colors min-w-0"
+            >
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="shrink-0"
+              >
+                <path
+                  d="M16 17L21 12M21 12L16 7M21 12H9M9 3H7.8C6.11984 3 5.27976 3 4.63803 3.32698C4.07354 3.6146 3.6146 4.07354 3.32698 4.63803C3 5.27976 3 6.11984 3 7.8V16.2C3 17.8802 3 18.7202 3.32698 19.362C3.6146 19.9265 4.07354 20.3854 4.63803 20.673C5.27976 21 6.11984 21 7.8 21H9"
+                  stroke="white"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span
+                className={`text-white text-sm whitespace-nowrap transition-opacity duration-200 ${
+                  isSidebarOpen ? "opacity-100" : "opacity-0 w-0"
+                }`}
+              >
+                Signout
+              </span>
+            </li>
           </ul>
 
           {/* Chat History List */}
@@ -377,14 +421,6 @@ export const Sidebar: React.FC = () => {
                   <p className="text-sm text-white font-medium truncate">
                     User
                   </p>
-                  <button
-                    onClick={() => {
-                      router.push("/login");
-                    }}
-                    className="text-xs text-gray-500 hover:text-gray-300"
-                  >
-                    Logout
-                  </button>
                 </div>
               </div>
             ) : (
